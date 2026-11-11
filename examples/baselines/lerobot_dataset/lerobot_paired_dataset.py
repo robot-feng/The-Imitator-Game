@@ -69,7 +69,7 @@ class PairedDatasetConfig:
     # Human video settings
     num_frames:        int = 10
     sampling_strategy: str = "uniform_jitter"
-    video_backend:     str = "torchcodec"
+    video_backend:     str = "pyav"
 
     # Robot/Sim trajectory settings
     horizon:     int = 16

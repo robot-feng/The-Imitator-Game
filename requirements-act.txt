@@ -1,0 +1,44 @@
+# Minimal Python 3.12 environment for ACT video training and ManiSkill evaluation.
+# Install lerobot==0.5.0 separately with --no-deps (see README.md): its published
+# dependency metadata conflicts with this repository's Gymnasium/Diffusers pins.
+torch==2.7.1
+torchvision==0.22.1
+numpy>=2.2,<2.6
+sapien==3.0.3
+dacite
+gymnasium==0.29.1
+gym>=0.26.2
+albumentations>=2.0.8
+tyro>=0.9.5
+transformers>=4.52.0,<5
+timm==0.9.10
+diffusers==0.39.0
+datasets>=4.0.0,<5
+av>=10.0.0,<16.0.0
+opencv-python-headless==4.14.0.94
+h5py
+pyarrow>=20,<27
+polars>=1.30.0,<2
+pandas>=2,<3
+imageio[ffmpeg]
+matplotlib>=3.6.1
+ipython
+scipy>=1.18,<2
+trimesh
+transforms3d
+beartype==0.19.0
+Pillow>=11.0.0,<12
+tensorboard>=2.15.0
+tqdm>=4.64.1
+pyyaml
+termcolor>=2.0.1
+huggingface_hub>=0.34.0,<1.0
+requests>=2.32
+mplib==0.1.1
+pytorch_kinematics==0.7.5
+accelerate>=1.10.1
+wandb>=0.19.1
+psutil>=5.9.2
+pynvml
+json-numpy>=2.1.1
+jsonlines>=4.0.0

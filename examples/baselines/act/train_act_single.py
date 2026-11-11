@@ -296,7 +296,7 @@ def build_dataloader(args: TrainingArgs):
         horizon=args.pred_horizon,
         obs_horizon=args.obs_horizon,
         fps=30,
-        video_backend="torchcodec",
+        video_backend="pyav",
         tolerance_s=0.05,
         enable_augmentation=True,
     )

@@ -177,7 +177,11 @@ def evaluate_with_task_encoder(
     pred_horizon  = eval_kwargs.get("pred_horizon")
     temporal_agg       = eval_kwargs.get("temporal_agg")
     light_temporal_agg = eval_kwargs.get("light_temporal_agg", True)
-    tagg_window        = eval_kwargs.get("tagg_window", 4)
+    tagg_window        = eval_kwargs.get("tagg_window", pred_horizon)
+    if not 1 <= tagg_window <= pred_horizon:
+        raise ValueError(
+            f"tagg_window must be within [1, pred_horizon={pred_horizon}], got {tagg_window}"
+        )
     max_timesteps      = eval_kwargs.get("max_timesteps")
     device             = eval_kwargs.get("device")
     sim_backend        = eval_kwargs.get("sim_backend")
@@ -471,10 +475,11 @@ def parse_args():
                              "Queries every --tagg-window steps and averages the last "
                              "--tagg-window predictions. Faster than --temporal-agg "
                              "while still smoothing chunk-boundary jitter.")
-    parser.add_argument("--tagg-window",           type=int, default=4,
+    parser.add_argument("--tagg-window",           type=int, default=None,
                         help="Window size K for --light-temporal-agg. "
                              "Queries every K steps; smaller=smoother but slower. "
-                             "Typical: 4 (pred_horizon=24 → 6× faster than temporal-agg).")
+                             "Defaults to the checkpoint's full pred_horizon so each "
+                             "predicted action chunk is executed before replanning.")
 
     # DETR architecture (read from checkpoint, CLI only for override)
     parser.add_argument("--enc-layers",      type=int, default=12)
@@ -609,6 +614,7 @@ def load_agent_from_checkpoint(checkpoint_path: str, args, device: torch.device)
         # Task encoder type + FrozenVideoBackbone settings
         task_encoder_type              = _get("task_encoder_type",              args.task_encoder_type),
         frozen_backbone_type           = _get("frozen_backbone_type",           args.frozen_backbone_type),
+        frozen_backbone_model          = _get("frozen_backbone_model",          None),
         frozen_backbone_adapter_layers = _get("frozen_backbone_adapter_layers", args.frozen_backbone_adapter_layers),
         frozen_backbone_seq_patches    = _get("frozen_backbone_seq_patches",    args.frozen_backbone_seq_patches),
         frozen_backbone_num_frames     = _get("frozen_backbone_num_frames",     args.frozen_backbone_num_frames),
@@ -700,8 +706,8 @@ def evaluate_single_env(
         reward_mode="dense",
         obs_mode=obs_mode,
         render_mode="rgb_array",
-        max_episode_steps=args.max_episode_steps, 
-        sensor_configs=dict(shader_pack="rt-fast"), 
+        max_episode_steps=args.max_episode_steps,
+        sensor_configs=dict(shader_pack="rt-fast"),
         human_render_camera_configs=dict(shader_pack="rt-fast"),
     )
     other_kwargs = dict(obs_horizon=model_config["obs_horizon"])
@@ -727,7 +733,11 @@ def evaluate_single_env(
             pred_horizon=model_config["pred_horizon"],
             temporal_agg=args.temporal_agg,
             light_temporal_agg=args.light_temporal_agg,
-            tagg_window=args.tagg_window,
+            tagg_window=(
+                args.tagg_window
+                if args.tagg_window is not None
+                else model_config["pred_horizon"]
+            ),
             max_timesteps=args.max_episode_steps,
             device=args.device,
             sim_backend=args.sim_backend,
@@ -874,7 +884,7 @@ def main():
             human_include_depth=model_config.get("include_depth", args.include_depth),
             human_num_frames=model_config.get("num_video_frames", args.task_num_frames),
             human_image_size=model_config.get("image_size", tuple(args.image_size)),
-            human_video_backend="torchcodec",
+            human_video_backend="pyav",
             human_fps=30,
             sim_root=args.sim_root,
             sim_split="train",

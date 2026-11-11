@@ -1,0 +1,50 @@
+[
+  {
+    "repo_id": "L0_TwoRobotCleanDesk-v1",
+    "root": "L0_TwoRobotCleanDesk-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L1_TwoRobotCleanDesk-v1",
+    "root": "L1_TwoRobotCleanDesk-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L2_TwoRobotCleanDesk-v1",
+    "root": "L2_TwoRobotCleanDesk-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L3_TwoRobotCleanDesk-v1",
+    "root": "L3_TwoRobotCleanDesk-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L0_TwoRobotPressJuicer-v1",
+    "root": "L0_TwoRobotPressJuicer-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L1_TwoRobotPressJuicer-v1",
+    "root": "L1_TwoRobotPressJuicer-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L2_TwoRobotPressJuicer-v1",
+    "root": "L2_TwoRobotPressJuicer-v1",
+    "train": "0:50",
+    "test": ""
+  },
+  {
+    "repo_id": "L3_TwoRobotPressJuicer-v1",
+    "root": "L3_TwoRobotPressJuicer-v1",
+    "train": "0:50",
+    "test": ""
+  }
+]

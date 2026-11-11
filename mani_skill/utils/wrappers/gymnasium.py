@@ -71,7 +71,10 @@ class CPUGymWrapper(gym.Wrapper):
             episode_info["reward"] = (
                 episode_info["return"] / episode_info["episode_len"]
             )
-            episode_info["last_reward"] = float(reward)
+            # ManiSkill's CPU backend returns a length-1 batch for a single
+            # environment. NumPy 2 no longer allows float(array([x])), so
+            # unwrap the single reward before storing the scalar metric.
+            episode_info["last_reward"] = float(np.asarray(reward).item())
         if self.ignore_terminations:
             terminated = False
             if self.record_metrics:

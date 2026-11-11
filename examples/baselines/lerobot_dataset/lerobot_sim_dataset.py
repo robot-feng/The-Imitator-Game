@@ -136,7 +136,7 @@ class LeRobotSimDataConfig:
     # LeRobot-specific / additional parameters
     repo_id: Optional[str] = None
     fps: int = 30  # FPS for calculating time offsets
-    video_backend: str = "torchcodec"
+    video_backend: str = "pyav"
     tolerance_s: float = 0.0001
 
     # Normalization
@@ -218,6 +218,7 @@ class LeRobotSimDataset(Dataset):
                     video_backend=config.video_backend,
                     tolerance_s=config.tolerance_s,
                     episodes=sub_episodes,
+                    required_video_keys=used_cam_keys,
                 )
                 sub_datasets.append(sub_ds)
         else:

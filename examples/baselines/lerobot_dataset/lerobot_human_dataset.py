@@ -66,7 +66,7 @@ class HumanVideoDataConfig:
     max_jitter: int = 3  # Maximum jitter for uniform sampling (in frames)
 
     # Video backend
-    video_backend: str = "torchcodec"  # "torchcodec", "decord", or "opencv"
+    video_backend: str = "pyav"  # "pyav" uses the OpenCV fallback in VideoFrameReader
 
     # FPS
     fps: int = 30

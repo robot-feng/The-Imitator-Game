@@ -33,7 +33,7 @@ class HumanVideoSimEvaluateProcessorConfig:
     human_image_size: Tuple[int, int] = (224, 224)
     human_sampling_strategy: str = "uniform_jitter"
     human_max_jitter: int = 3
-    human_video_backend: str = "torchcodec"
+    human_video_backend: str = "pyav"
     human_fps: int = 30
     human_debug: bool = False
 

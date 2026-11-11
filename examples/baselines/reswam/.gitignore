@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+runs/tmp/*
+!runs/tmp/.gitkeep
+runs/official/*
+!runs/official/.gitkeep
+*.pt
+*.pth
+*.safetensors

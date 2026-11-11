@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 20914)
+Total output lines: 1910
+
 #!/usr/bin/env python
 
 # Copyright 2024 The HuggingFace Inc. team. All rights reserved.
@@ -576,6 +579,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         force_cache_sync: bool = False,
         download_videos: bool = True,
         video_backend: str | None = None,
+        required_video_keys: list[str] | None = None,
         batch_encoding_size: int = 1,
         vcodec: str = "libx265",
         streaming_encoding: bool = False,
@@ -713,6 +717,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.tolerance_s = tolerance_s
         self.revision = revision if revision else CODEBASE_VERSION
         self.video_backend = video_backend if video_backend else get_safe_default_codec()
+        self.required_video_keys = set(required_video_keys) if required_video_keys is not None else None
         self.delta_indices = None
         self.batch_encoding_size = batch_encoding_size
         self.episodes_since_last_encoding = 0
@@ -879,16 +884,23 @@ class LeRobotDataset(torch.utils.data.Dataset):
     def get_episodes_file_paths(self) -> list[Path]:
         episodes = self.episodes if self.episodes is not None else list(range(self.meta.total_episodes))
         fpaths = [str(self.meta.get_data_file_path(ep_idx)) for ep_idx in episodes]
-        if len(self.meta.video_keys) > 0:
+        video_keys = self._required_video_keys()
+        if video_keys:
             video_files = [
                 str(self.meta.get_video_file_path(ep_idx, vid_key))
-                for vid_key in self.meta.video_keys
+                for vid_key in video_keys
                 for ep_idx in episodes
             ]
             fpaths += video_files
         # episodes are stored in the same files, so we return unique paths only
         fpaths = list(set(fpaths))
         return fpaths
+
+    def _required_video_keys(self) -> list[str]:
+        """Return video keys that this consumer actually needs on disk."""
+        if self.required_video_keys is None:
+            return self.meta.video_keys
+        return [key for key in self.meta.video_keys if key in self.required_video_keys]
 
     def load_hf_dataset(self) -> datasets.Dataset:
         """hf_dataset contains all the observations, states, actions, rewards, etc."""
@@ -919,9 +931,10 @@ class LeRobotDataset(torch.utils.data.Dataset):
             return False
 
         # Check if all required video files exist
-        if len(self.meta.video_keys) > 0:
+        video_keys = self._required_video_keys()
+        if video_keys:
             for ep_idx in requested_episodes:
-                for vid_key in self.meta.video_keys:
+                for vid_key in video_keys:
                     video_path = self.root / self.meta.get_video_file_path(ep_idx, vid_key)
                     if not video_path.exists():
                         return False
@@ -929,97 +942,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return True
 
     def create_hf_dataset(self) -> datasets.Dataset:
-        features = get_hf_features_from_features(self.features)
-        ft_dict = {col: [] for col in features}
-        hf_dataset = datasets.Dataset.from_dict(ft_dict, features=features, split="train")
-        hf_dataset.set_transform(hf_transform_to_torch)
-        return hf_dataset
-
-    @property
-    def fps(self) -> int:
-        """Frames per second used during data collection."""
-        return self.meta.fps
-
-    @property
-    def num_frames(self) -> int:
-        """Number of frames in selected episodes.
-
-        Note: When episodes a subset of the full dataset is requested, we must return the
-        actual loaded data length (len(self.hf_dataset)) rather than metadata total_frames.
-        self.meta.total_frames is the total number of frames in the full dataset.
-        """
-        if self.episodes is not None and self.hf_dataset is not None:
-            return len(self.hf_dataset)
-        return self.meta.total_frames
-
-    @property
-    def num_episodes(self) -> int:
-        """Number of episodes selected."""
-        return len(self.episodes) if self.episodes is not None else self.meta.total_episodes
-
-    @property
-    def features(self) -> dict[str, dict]:
-        return self.meta.features
-
-    @property
-    def hf_features(self) -> datasets.Features:
-        """Features of the hf_dataset."""
-        if self.hf_dataset is not None:
-            return self.hf_dataset.features
-        else:
-            return get_hf_features_from_features(self.features)
-
-    def _get_query_indices(
-        self, abs_idx: int, ep_idx: int
-    ) -> tuple[dict[str, list[int]], dict[str, torch.Tensor]]:
-        """Compute query indices for delta timestamps.
-
-        Args:
-            abs_idx: The absolute index in the full dataset (not the relative index in filtered episodes).
-            ep_idx: The episode index.
-
-        Returns:
-            A tuple of (query_indices, padding) where:
-            - query_indices: Dict mapping keys to lists of absolute indices to query
-            - padding: Dict mapping "{key}_is_pad" to boolean tensors indicating padded positions
-        """
-        ep = self.meta.episodes[ep_idx]
-        ep_start = ep["dataset_from_index"]
-        ep_end = ep["dataset_to_index"]
-        query_indices = {
-            key: [max(ep_start, min(ep_end - 1, abs_idx + delta)) for delta in delta_idx]
-            for key, delta_idx in self.delta_indices.items()
-        }
-        padding = {  # Pad values outside of current episode range
-            f"{key}_is_pad": torch.BoolTensor(
-                [(abs_idx + delta < ep_start) | (abs_idx + delta >= ep_end) for delta in delta_idx]
-            )
-            for key, delta_idx in self.delta_indices.items()
-        }
-        return query_indices, padding
-
-    def _get_query_timestamps(
-        self,
-        current_ts: float,
-        query_indices: dict[str, list[int]] | None = None,
-    ) -> dict[str, list[float]]:
-        query_timestamps = {}
-        for key in self.meta.video_keys:
-            if query_indices is not None and key in query_indices:
-                if self._absolute_to_relative_idx is not None:
-                    relative_indices = [self._absolute_to_relative_idx[idx] for idx in query_indices[key]]
-                    timestamps = self.hf_dataset[relative_indices]["timestamp"]
-                else:
-                    timestamps = self.hf_dataset[query_indices[key]]["timestamp"]
-                query_timestamps[key] = torch.stack(timestamps).tolist()
-            else:
-                query_timestamps[key] = [current_ts]
-
-        return query_timestamps
-
-    def _query_hf_dataset(self, query_indices: dict[str, list[int]]) -> dict:
-        """
-        Query dataset for indices across keys, skipping video keys.
+        features = get_hf…914 tokens truncated…  Query dataset for indices across keys, skipping video keys.
 
         Tries column-first [key][indices] for speed, falls back to row-first.
 

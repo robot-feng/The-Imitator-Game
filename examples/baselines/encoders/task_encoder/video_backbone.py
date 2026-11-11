@@ -187,6 +187,7 @@ class FrozenVideoBackbone(nn.Module):
         adapter_add_layernorm:       bool           = True,
         num_sampled_frames:          int            = 10,
         hf_cache_dir:                Optional[str]  = None,
+        model_name:                  Optional[str]  = None,
         image_size:                  int            = 224,
         # ── LoRA parameters ────────────────────────────────────────────────
         lora_rank:                   int            = 0,
@@ -211,6 +212,7 @@ class FrozenVideoBackbone(nn.Module):
         self.adapter_add_layernorm       = adapter_add_layernorm
         self.num_sampled_frames          = num_sampled_frames
         self.hf_cache_dir                = hf_cache_dir
+        self.model_name                  = model_name
         self.image_size                  = image_size
 
         # ── LoRA config ────────────────────────────────────────────────────
@@ -348,12 +350,13 @@ class FrozenVideoBackbone(nn.Module):
     def _load_dino(self) -> None:
         from transformers import AutoModel, AutoImageProcessor
         meta = self._meta
-        print(f"  [FrozenVideoBackbone] Loading {meta['hf_model']} (DINOv2 via HF) ...")
+        model_name = self.model_name or meta["hf_model"]
+        print(f"  [FrozenVideoBackbone] Loading {model_name} (DINOv2) ...")
         kw = {}
         if self.hf_cache_dir:
             kw["cache_dir"] = self.hf_cache_dir
-        model = AutoModel.from_pretrained(meta["hf_model"], **kw)
-        proc  = AutoImageProcessor.from_pretrained(meta["hf_model"], **kw)
+        model = AutoModel.from_pretrained(model_name, **kw)
+        proc  = AutoImageProcessor.from_pretrained(model_name, **kw)
         model.eval()
         for p in model.parameters():
             p.requires_grad_(False)
@@ -369,7 +372,7 @@ class FrozenVideoBackbone(nn.Module):
             self._adapter_final_dim = true_dim
 
         n = sum(p.numel() for p in model.parameters()) / 1e6
-        print(f"  ✓ DINOv2 {meta['hf_model']}: {n:.0f}M params loaded")
+        print(f"  ✓ DINOv2 {model_name}: {n:.0f}M params loaded")
 
         # Inject LoRA after base model is ready
         self._inject_lora()
@@ -820,6 +823,7 @@ def build_video_backbone(
     max_seq_patches:             int           = 32,
     adapter_layers:              int           = 1,
     hf_cache_dir:                Optional[str] = None,
+        model_name:                  Optional[str] = None,
     num_sampled_frames:          int           = 10,
     # LoRA parameters
     lora_rank:                   int           = 0,
@@ -858,6 +862,7 @@ def build_video_backbone(
         adapter_layers=adapter_layers,
         num_sampled_frames=num_sampled_frames,
         hf_cache_dir=hf_cache_dir,
+        model_name=model_name,
         lora_rank=lora_rank,
         lora_alpha=lora_alpha,
         lora_dropout=lora_dropout,

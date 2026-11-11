@@ -18,21 +18,47 @@ This repo contains the simulation framework (powered by [ManiSkill](https://www.
 
 ## Installation
 
-Installation only requires a few [uv](https://docs.astral.sh/uv/getting-started/installation/) installs plus a Vulkan setup for rendering:
+The full repository uses [uv](https://docs.astral.sh/uv/getting-started/installation/) and Vulkan for rendering. For the smaller ACT + ManiSkill setup in this reproduction, install only the dependencies listed in `requirements-act.txt`:
 
 ```bash
-uv sync --active
-source .venv/bin/activate
-
-# patch a known lerobot bug
-curl -sSL https://raw.githubusercontent.com/huggingface/lerobot/0e81a275fcdbf03d74f78aa69eaa28c172a9f256/src/lerobot/datasets/lerobot_dataset.py -o .venv/lib/python3.11/site-packages/lerobot/datasets/lerobot_dataset.py
+uv venv --python 3.12
+uv pip install --no-config --python .venv/bin/python -r requirements-act.txt
+# This repository consumes LeRobot 0.5.0 dataset APIs. Install its code without
+# resolving its metadata: that release requires Gymnasium >=1.1 and Diffusers <0.36,
+# which conflict with ManiSkill's Gymnasium 0.29 and this repo's Diffusers >=0.36.
+uv pip install --no-config --no-deps --python .venv/bin/python "lerobot==0.5.0"
 ```
+
+`--no-config` is needed here because this repository's full-project `uv` overrides
+target a different dependency set than the ACT + ManiSkill subset.
 
 Set up Vulkan for rendering following the [ManiSkill installation instructions](https://maniskill.readthedocs.io/en/latest/user_guide/getting_started/installation.html#vulkan).
 
 ## Downloading assets
 
 We provide the [assets set](https://huggingface.co/datasets/imitator-game/IG-10K-Assets) that we used in The Imitator Game ([ycb](https://huggingface.co/datasets/haosulab/ManiSkill2/resolve/main/data/mani_skill2_ycb.zip) / [RoboTwin](https://robotwin-platform.github.io/doc/objects/index.html) / [PartNet-Mobility](https://sapien.ucsd.edu/browse) / [sketchfeb](https://sketchfab.com/)), but we encourage the community to add more diverse assets. The assets should be placed in `~/.maniskill/data`.
+
+For the compact CleanDesk + PressJuicer L0 subset, the script below downloads the shared asset archive, the YCB models used by CleanDesk, and only PartNet CoffeeMachine model `103105` from the PartNet archive:
+
+```bash
+.venv/bin/python scripts/download_two_task_assets.py
+```
+
+The original L0-only selection is downloaded separately with `scripts/download_two_task_l0.py`. For the complete two-task L0–L3 reproduction subset, use the following downloader; it also retrieves the task-specific assets required to evaluate every level:
+
+```bash
+.venv/bin/python scripts/download_two_task_l0_l3.py
+```
+
+This keeps the shared human `H19`/`H50` demonstrations, all four levels of their real-robot trajectories, and all eight simulation datasets. It downloads ZED2i RGB plus parquet and metadata needed for actions, timing, and MANO features. Existing L0 files are reused. The expected fresh transfer is about 10 GB, including the PartNet archive needed to extract the additional L2 CoffeeMachine model; the retained selected dataset is about 6.9 GiB plus the installed simulator assets. See the [complete subset notes](examples/baselines/lerobot_dataset/config/two_task_l0_l3/README.md) for training and evaluation commands.
+
+Before ACT training, download its frozen DINOv2 task encoder to the local cache:
+
+```bash
+.venv/bin/python scripts/download_act_backbone.py
+```
+
+For a full benchmark asset download instead, use the commands below.
 
 ```bash
 # Hugging Face
@@ -50,7 +76,9 @@ External GLB assets (Sketchfab, Hunyuan-generated meshes, [Objaverse](https://ob
 
 ## IG-10K Dataset
 
-The dataset is in `LeRobot-0.5.0` format. See [`examples/baselines/lerobot_dataset/README.md`](examples\baselines\lerobot_dataset\README.md) for the dataset layout, observation features (RGB/depth cameras, MANO hand pose, segmentation masks), and the imitative level handling of the paired human/robot data.
+The dataset is in `LeRobot-0.5.0` format. See [`examples/baselines/lerobot_dataset/README.md`](examples/baselines/lerobot_dataset/README.md) for the dataset layout, observation features (RGB/depth cameras, MANO hand pose, segmentation masks), and the imitative level handling of the paired human/robot data.
+
+The compact CleanDesk + PressJuicer L0 dataset is downloaded with `scripts/download_two_task_l0.py`. For the complete L0–L3 two-task selection, run `scripts/download_two_task_l0_l3.py`; both scripts use a file allowlist and do not fetch the full dataset.
 
 ```bash
 # Hugging Face
@@ -59,18 +87,24 @@ hf download imitator-game/IG-10K-Dataset --repo-type dataset --local-dir demos
 # modelscope download --dataset Zhouxunzhe/IG-10K-Dataset --local_dir demos
 ```
 
-Data is recommended to be placed as the followed paths:
+The selected LeRobot datasets are grouped by data source:
 
 ```text
 The-Imitator-Game/
 └── demos/
-    ├── demo_data/          # Human demonstration dataset(s)
-    └── imitator_data/      # Robot (simulation) demonstrations in LeRobot format
+    ├── demo_data/          # Human demonstrations: human_H19 and human_H50
+    ├── robot_data/         # Real-robot data: robot_H19_L0…L3 and robot_H50_L0…L3
+    └── imitator_data/      # Simulation data: the eight CleanDesk/PressJuicer L0–L3 environments
 ```
+
+`H19` maps to CleanDesk and `H50` maps to PressJuicer. Each task directory
+contains LeRobot `data/`, `meta/`, and the selected
+`videos/observation.images.zed2i/` stream. Human demonstrations are shared
+across levels; the level is included in each robot and simulation directory.
 
 ### Collect new data in simulation
 
-See [`scripts/collect_data.py`](scripts/collect_data.py) for collecting simulation motion-planning demonstrations in ManiSkill hdf5-format, and [examples/baselines/lerobot_dataset/h5_to_lerobot.py](examples/baselines/lerobot_dataset/h5_to_lerobot.py ) for converting `.h5` trajectories to `LeRobot-0.5.0` format. An example script for data collection: 
+See [`scripts/collect_data.py`](scripts/collect_data.py) for collecting simulation motion-planning demonstrations in ManiSkill hdf5-format, and [examples/baselines/lerobot_dataset/h5_to_lerobot.py](examples/baselines/lerobot_dataset/h5_to_lerobot.py ) for converting `.h5` trajectories to `LeRobot-0.5.0` format. An example script for data collection:
 
 ```bash
 python -m mani_skill.examples.motionplanning.dual.two_robot_run --shader "rt-fast" -n 50 -e "Task name" --save-video
@@ -78,7 +112,7 @@ python -m mani_skill.examples.motionplanning.dual.two_robot_run --shader "rt-fas
 
 ## Benchmark
 
-Each baseline has its own README.md with training and evaluation commands under [examples/baselines/](examples/baselines/). An example script for model training and evaluation: 
+Each baseline has its own README.md with training and evaluation commands under [examples/baselines/](examples/baselines/). An example script for model training and evaluation:
 
 ```bash
 # Training
@@ -110,7 +144,7 @@ participate and contribute to the community. Contributions will be acknowledged 
 
 ### **Get involved**
 
-Everyone can contribute to this project by submitting **tasks / models / embodiments** that support the Imitator-Game **data-collection / training / evaluation** framework. Please follow the design templates and contribute via pull request: 
+Everyone can contribute to this project by submitting **tasks / models / embodiments** that support the Imitator-Game **data-collection / training / evaluation** framework. Please follow the design templates and contribute via pull request:
 
 - Contribute new Imitator tasks (L0–L3) designed with the task template under [mani_skill/envs/tasks/_template/](mani_skill/envs/tasks/_template/) (together with the motion-planning solutions);
 - contribute new imitation-learning models built on the baseline template under [examples/baselines/_template/](examples/baselines/_template/) (together with evaluation interface);

@@ -159,7 +159,7 @@ class TrainingArgs:
     use_video_prob:            float = 0.5
     include_first_frame:       bool  = True
     fps:                       int   = 30
-    video_backend:             str   = "torchcodec"
+    video_backend:             str   = "pyav"
 
     # ── Logging and evaluation ────────────────────────────────────────────────
     log_freq:           int  = 10
@@ -207,6 +207,7 @@ def _build_frozen_backbone_encoder(args, device, dataloader=None):
         adapter_layers=args.frozen_backbone_adapter_layers,
         num_sampled_frames=args.frozen_backbone_num_frames,
         hf_cache_dir=getattr(args, "hf_cache_dir", None),
+        model_name=args.frozen_backbone_model,
         lora_rank=lora_rank,
         lora_alpha=lora_alpha,
         lora_dropout=lora_dropout,
@@ -744,8 +745,13 @@ def train():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32       = True
 
-    _use_amp   = torch.cuda.is_available()
-    _amp_dtype = torch.bfloat16
+    _use_amp = torch.cuda.is_available()
+    if _use_amp:
+        major, _ = torch.cuda.get_device_capability(device)
+        # Ampere and newer have native BF16; Turing (RTX 20 series) trains in FP16.
+        _amp_dtype = torch.bfloat16 if major >= 8 else torch.float16
+    else:
+        _amp_dtype = torch.float32
     scaler = torch.cuda.amp.GradScaler(enabled=(_amp_dtype == torch.float16 and _use_amp))
 
     if args.track:
