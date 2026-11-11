@@ -1,13 +1,13 @@
 [
   {
     "repo_id": "human_H19",
-    "root": "human_H19",
+    "root": "CleanDesk",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "human_H50",
-    "root": "human_H50",
+    "root": "PressJuicer",
     "train": "0:50",
     "test": ""
   }

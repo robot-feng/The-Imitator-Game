@@ -82,25 +82,34 @@ The compact CleanDesk + PressJuicer L0 dataset is downloaded with `scripts/downl
 
 ```bash
 # Hugging Face
-hf download imitator-game/IG-10K-Dataset --repo-type dataset --local-dir demos
+hf download imitator-game/IG-10K-Dataset --repo-type dataset --local-dir dataset/IG-10K-full
 # ModelScope
-# modelscope download --dataset Zhouxunzhe/IG-10K-Dataset --local_dir demos
+# modelscope download --dataset Zhouxunzhe/IG-10K-Dataset --local_dir dataset/IG-10K-full
 ```
 
-The selected LeRobot datasets are grouped by data source:
+The selected CleanDesk + PressJuicer datasets are grouped by source, task, and
+level so the corresponding human, real-robot, and simulation data are easy to
+see together:
 
 ```text
 The-Imitator-Game/
-└── demos/
-    ├── demo_data/          # Human demonstrations: human_H19 and human_H50
-    ├── robot_data/         # Real-robot data: robot_H19_L0…L3 and robot_H50_L0…L3
-    └── imitator_data/      # Simulation data: the eight CleanDesk/PressJuicer L0–L3 environments
+└── dataset/
+    ├── human_data/
+    │   ├── CleanDesk/              # human_H19
+    │   └── PressJuicer/            # human_H50
+    ├── robot_data/
+    │   ├── CleanDesk/L0 … L3/
+    │   └── PressJuicer/L0 … L3/
+    └── sim_data/
+        ├── CleanDesk/L0 … L3/
+        └── PressJuicer/L0 … L3/
 ```
 
-`H19` maps to CleanDesk and `H50` maps to PressJuicer. Each task directory
-contains LeRobot `data/`, `meta/`, and the selected
-`videos/observation.images.zed2i/` stream. Human demonstrations are shared
-across levels; the level is included in each robot and simulation directory.
+`human_H19` maps to CleanDesk and `human_H50` maps to PressJuicer. The three
+sources correspond by task and, for robot/simulation, by L0–L3 level; their
+episodes are independent recordings rather than frame-by-frame paired clips.
+Human demonstrations are shared across levels. See [dataset/README.md](dataset/README.md)
+for the full mapping and file layout.
 
 ### Collect new data in simulation
 
@@ -117,8 +126,8 @@ Each baseline has its own README.md with training and evaluation commands under 
 ```bash
 # Training
 python -m examples.baselines.model.train_model_imitator \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-dataset-file path/to/human_train_config.json \
   --sim-dataset-file path/to/sim_train_config.json \
   --task-mapping-file examples/baselines/lerobot_dataset/task_mapping.json
@@ -127,8 +136,8 @@ python -m examples.baselines.model.train_model_imitator \
 python -m examples.baselines.model.eval_model_imitator \
   --eval-config path/to/eval_config.txt \
   --checkpoint path/to/final_model.pt \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-config path/to/human_eval_config.json \
   --sim-config path/to/sim_eval_config.json \
   --task-mapping examples/baselines/lerobot_dataset/task_mapping.json

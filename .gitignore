@@ -35,6 +35,8 @@ imgui.ini
 /data
 /demos/*
 !/demos/README.md
+/dataset/*
+!/dataset/README.md
 /videos
 /examples/benchmarking/videos
 

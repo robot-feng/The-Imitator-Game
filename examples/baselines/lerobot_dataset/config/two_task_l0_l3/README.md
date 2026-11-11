@@ -2,10 +2,10 @@
 
 This reproduction selection contains two tasks at every imitative level:
 
-| Task | Human branch | Real-robot branches | Simulation environments |
+| Task | Human data path / ID | Real-robot paths / IDs | Simulation paths / IDs |
 |---|---|---|---|
-| CleanDesk | `human_H19` | `robot_H19_L0` … `robot_H19_L3` | `L0` … `L3_TwoRobotCleanDesk-v1` |
-| PressJuicer | `human_H50` | `robot_H50_L0` … `robot_H50_L3` | `L0` … `L3_TwoRobotPressJuicer-v1` |
+| CleanDesk | `dataset/human_data/CleanDesk` / `human_H19` | `dataset/robot_data/CleanDesk/L0…L3` / `robot_H19_L0…L3` | `dataset/sim_data/CleanDesk/L0…L3` / `L0…L3_TwoRobotCleanDesk-v1` |
+| PressJuicer | `dataset/human_data/PressJuicer` / `human_H50` | `dataset/robot_data/PressJuicer/L0…L3` / `robot_H50_L0…L3` | `dataset/sim_data/PressJuicer/L0…L3` / `L0…L3_TwoRobotPressJuicer-v1` |
 
 The human branch is shared across levels. Each human, real-robot, and simulation
 branch contributes its first 50 episodes. The selected streams include ZED2i
@@ -13,7 +13,10 @@ RGB videos, LeRobot parquet files, metadata, and MANO fields in the human
 parquet data. Other camera streams, depth videos, masks, unrelated tasks, and
 unselected episodes are omitted. The training configs use all 50 selected
 episodes; evaluation is performed in the eight simulator environments listed
-in `eval_envs.txt`.
+in `eval_envs.txt`. These are task-level correspondences, not paired episodes:
+the three sources were recorded independently, so episode 0 in the human data
+does not describe the same motion or frames as episode 0 in the robot or sim
+data. The exact task mapping is in `task_mapping.json`.
 
 Run the resumable downloader from the repository root:
 
@@ -21,9 +24,9 @@ Run the resumable downloader from the repository root:
 .venv/bin/python scripts/download_two_task_l0_l3.py
 ```
 
-It reuses valid files already present in `demos/`, stores the data directly in
-`demo_data` (human), `robot_data` (real robot), and `imitator_data`
-(simulation), writes the configs in this directory, and installs the selected
+It reuses valid files already present in `dataset/`, groups them under
+`human_data/<task>`, `robot_data/<task>/L<level>`, and
+`sim_data/<task>/L<level>`, writes the matching configs in this directory, and installs the selected
 L2/L3 simulation assets. The expected new
 transfer is about 10 GiB when starting from the existing L0 subset; the final
 selected dataset is about 6.9 GiB, plus installed assets. The script prints the
@@ -37,8 +40,8 @@ default is all of L0–L3.
 CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines.act.train_act_imitator \
   --exp-name two_task_l0_l3_act_sim \
   --data-source sim \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0_l3/human_train.json \
   --sim-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0_l3/sim_train.json \
   --task-mapping-file examples/baselines/lerobot_dataset/task_mapping.json \
@@ -61,7 +64,7 @@ CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines
 ```
 
 For training with real-robot trajectories, use the same human config and task
-mapping, set `--data-source robot --robot-root demos/robot_data`, and replace
+mapping, set `--data-source robot --robot-root dataset/robot_data`, and replace
 `--sim-dataset-file .../sim_train.json` with
 `--robot-dataset-file .../robot_train.json`.
 
@@ -71,8 +74,8 @@ mapping, set `--data-source robot --robot-root demos/robot_data`, and replace
 CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines.act.eval_act_imitator \
   --eval-config examples/baselines/lerobot_dataset/config/two_task_l0_l3/eval_envs.txt \
   --checkpoint runs/two_task_l0_l3_act_sim-<run>/checkpoints/final_model.pt \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-config examples/baselines/lerobot_dataset/config/two_task_l0_l3/human_train.json \
   --sim-config examples/baselines/lerobot_dataset/config/two_task_l0_l3/sim_train.json \
   --task-mapping examples/baselines/lerobot_dataset/task_mapping.json \

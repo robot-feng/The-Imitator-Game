@@ -8,6 +8,10 @@ This subset selects the 50 training episodes for the following paired tasks:
 Each task has three related branches: human demonstrations (including video and
 MANO estimates), real-robot trajectories, and simulation trajectories. The
 selected pairings are `human_H19` → CleanDesk and `human_H50` → PressJuicer.
+They are paired by task identity, not by episode: human, robot, and simulation
+episodes are independent recordings. The local directories are grouped as
+`dataset/<source>/<task>/L0` for robot and simulation, and
+`dataset/human_data/<task>` for human data.
 `human_train.json` is shared by the ACT data modes. Use `sim_train.json` with
 `--data-source sim` to pair human videos with simulation trajectories; use
 `robot_train.json` with `--data-source robot` to pair the same human videos with
@@ -29,9 +33,9 @@ From the repository root, after installing the environment:
 
 This downloads only the two tasks' 50 L0 training episodes for each branch,
 human and robot `zed2i` RGB videos, and the associated parquet and metadata
-files and places them directly under `demos/demo_data` (human),
-`demos/robot_data` (real robot), and `demos/imitator_data` (simulation). It
-skips other cameras, depth videos, masks, tasks, and levels.
+files. It stores them under `dataset/human_data/<task>`,
+`dataset/robot_data/<task>/L0`, and `dataset/sim_data/<task>/L0`. It skips
+other cameras, depth videos, masks, tasks, and levels.
 
 The selected dataset files total about 2.44 GB. Evaluation also needs the
 simulator assets: the shared asset archive (about 27 MB), YCB models
@@ -54,7 +58,7 @@ Real-robot-paired ACT training uses:
 
 ```text
 --data-source robot
---robot-root demos/robot_data
+--robot-root dataset/robot_data
 --human-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0/human_train.json
 --robot-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0/robot_train.json
 ```
@@ -81,8 +85,8 @@ a hardware-sized reproduction run, not the paper's 1024-wide, 12-layer model.
 CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines.act.train_act_imitator \
   --exp-name two_task_l0_act_10ep_512 \
   --data-source sim \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0/human_train.json \
   --sim-dataset-file examples/baselines/lerobot_dataset/config/two_task_l0/sim_train.json \
   --task-mapping-file examples/baselines/lerobot_dataset/task_mapping.json \
@@ -111,8 +115,8 @@ the default 500-step limit:
 CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines.act.eval_act_imitator \
   --eval-config examples/baselines/lerobot_dataset/config/two_task_l0/eval_envs.txt \
   --checkpoint runs/two_task_l0_act_10ep_512-20261110/checkpoints/final_model.pt \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-config examples/baselines/lerobot_dataset/config/two_task_l0/human_train.json \
   --sim-config examples/baselines/lerobot_dataset/config/two_task_l0/sim_train.json \
   --task-mapping examples/baselines/lerobot_dataset/task_mapping.json \
@@ -126,7 +130,7 @@ CUDA_VISIBLE_DEVICES=0 PYTHONUNBUFFERED=1 .venv/bin/python -m examples.baselines
   --output-dir runs/two_task_l0_act_10ep_512-20261110/eval
 ```
 
-Use `--data-source robot --robot-root demos/robot_data --robot-dataset-file
+Use `--data-source robot --robot-root dataset/robot_data --robot-dataset-file
 examples/baselines/lerobot_dataset/config/two_task_l0/robot_train.json` in place
 of the simulation data options to train the same two human-conditioned tasks
 against real-robot trajectories. Human demonstrations supply the video task

@@ -1014,7 +1014,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         query_indices: dict[str, list[int]] | None = None,
     ) -> dict[str, list[float]]:
         query_timestamps = {}
-        for key in self.meta.video_keys:
+        for key in self._required_video_keys():
             if query_indices is not None and key in query_indices:
                 if self._absolute_to_relative_idx is not None:
                     relative_indices = [self._absolute_to_relative_idx[idx] for idx in query_indices[key]]
@@ -1105,14 +1105,14 @@ class LeRobotDataset(torch.utils.data.Dataset):
             for key, val in query_result.items():
                 item[key] = val
 
-        if len(self.meta.video_keys) > 0:
+        if self._required_video_keys():
             current_ts = item["timestamp"].item()
             query_timestamps = self._get_query_timestamps(current_ts, query_indices)
             video_frames = self._query_videos(query_timestamps, ep_idx)
             item = {**video_frames, **item}
 
         if self.image_transforms is not None:
-            image_keys = self.meta.camera_keys
+            image_keys = [key for key in self.meta.camera_keys if key in item]
             for cam in image_keys:
                 item[cam] = self.image_transforms(item[cam])
 

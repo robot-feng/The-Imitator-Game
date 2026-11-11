@@ -1,49 +1,49 @@
 [
   {
     "repo_id": "robot_H19_L0",
-    "root": "robot_H19_L0",
+    "root": "CleanDesk/L0",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H19_L1",
-    "root": "robot_H19_L1",
+    "root": "CleanDesk/L1",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H19_L2",
-    "root": "robot_H19_L2",
+    "root": "CleanDesk/L2",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H19_L3",
-    "root": "robot_H19_L3",
+    "root": "CleanDesk/L3",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H50_L0",
-    "root": "robot_H50_L0",
+    "root": "PressJuicer/L0",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H50_L1",
-    "root": "robot_H50_L1",
+    "root": "PressJuicer/L1",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H50_L2",
-    "root": "robot_H50_L2",
+    "root": "PressJuicer/L2",
     "train": "0:50",
     "test": ""
   },
   {
     "repo_id": "robot_H50_L3",
-    "root": "robot_H50_L3",
+    "root": "PressJuicer/L3",
     "train": "0:50",
     "test": ""
   }

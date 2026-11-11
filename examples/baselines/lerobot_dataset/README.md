@@ -4,7 +4,7 @@
 
 ## Data Source
 
-This project uses the human demonstration dataset located in the `demos/demo_data` directory (at the repository root). The dataset contains both the original human demonstration data and the corresponding MANO hand-estimation data. They are not separate datasets; they are different observation features within the same episode/frame data.
+The compact CleanDesk + PressJuicer human data is in `dataset/human_data` at the repository root. It contains both the original demonstrations and corresponding MANO hand-estimation features in the same episode/frame data.
 
 The dataset follows the standard LeRobot dataset format, but this project uses a project-maintained LeRobot implementation and several project-specific loaders on top of the native LeRobot APIs. The main files are:
 
@@ -21,10 +21,10 @@ The dataset is compatible with the native LeRobot dataset format and can be insp
 
 ![dataset](../../../docs/media/dataset.png)
 
-Set the dataset root to the complete dataset:
+Set the root to the human-data group:
 
 ```bash
-DATA_ROOT=demos/demo_data
+DATA_ROOT=dataset/human_data
 ```
 
 ### Load one frame
@@ -36,13 +36,14 @@ exists, the data is read locally.
 ```python
 from examples.baselines.lerobot_dataset.lerobot_dataset import LeRobotDataset
 
-DATA_ROOT = "demos/demo_data"
-REPO_ID = "human_H41"
-ds = LeRobotDataset(repo_id=REPO_ID, root=f"{DATA_ROOT}/{REPO_ID}",
+DATA_ROOT = "dataset/human_data"
+REPO_ID = "human_H19"
+ds = LeRobotDataset(repo_id=REPO_ID, root=f"{DATA_ROOT}/CleanDesk",
+                    required_video_keys=["observation.images.zed2i"],
                     download_videos=True, video_backend="pyav")
 sample = ds[0]                         # one frame/timestep
 
-rgb = sample["observation.images.cam1"] # tensor, typically [C, H, W]
+rgb = sample["observation.images.zed2i"] # tensor, typically [C, H, W]
 timestamp = sample["timestamp"]        # seconds from episode start
 episode = sample["episode_index"]
 ```
@@ -60,7 +61,7 @@ MANO is stored as ordinary numerical features in the same row; it is not a
 second dataset and does not require running WiLoR during training.
 
 ```python
-prefix = "observation.hand.right.cam1"
+prefix = "observation.hand.right.zed2i"
 
 mano = {
     "global_orient": sample[f"{prefix}.mano_global_orient"], # [3], axis-angle
@@ -90,11 +91,11 @@ from examples.baselines.lerobot_dataset.lerobot_dataloader import (
     LeRobotDataConfig, build_lerobot_dataset,
 )
 
-DATA_ROOT = "demos/demo_data"
+DATA_ROOT = "dataset/human_data"
 video_ds = build_lerobot_dataset(LeRobotDataConfig(
     source_type="human", root=DATA_ROOT,
-    dataset_file="examples/baselines/lerobot_dataset/config/test_configs/human_test_config.json",
-    cameras=["cam1"],
+    dataset_file="examples/baselines/lerobot_dataset/config/two_task_l0_l3/human_train.json",
+    cameras=["zed2i"],
     include_depth=False, num_frames=10, image_size=(224, 224),
 ))
 clip = video_ds[0]       # clip["video"]: sampled RGB clip; no MANO keys here

@@ -27,8 +27,8 @@ TAG=<15|30|45>
 BACKBONE=<dinov2_vitl14|siglip2_so400m|videomae_large>
 
 python -m examples.baselines.act.train_act_imitator \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-dataset-file examples/baselines/lerobot_dataset/config/exp_configs/human_train_config_${TAG}.json \
   --sim-dataset-file examples/baselines/lerobot_dataset/config/exp_configs/sim_train_config_${TAG}.json \
   --task-mapping-file examples/baselines/lerobot_dataset/task_mapping.json \
@@ -66,8 +66,8 @@ BACKBONE=<dinov2_vitl14|siglip2_so400m|videomae_large>
 python -m examples.baselines.act.eval_act_imitator \
   --eval-config path/to/eval_config.txt \
   --checkpoint path/to/final_model.pt \
-  --human-root demos/demo_data \
-  --sim-root demos/imitator_data \
+  --human-root dataset/human_data \
+  --sim-root dataset/sim_data \
   --human-config path/to/human_eval_config.json \
   --sim-config path/to/sim_eval_config.json \
   --task-mapping examples/baselines/lerobot_dataset/task_mapping.json \

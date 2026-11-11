@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path, PurePosixPath
 import subprocess
@@ -22,15 +23,14 @@ from hf_download_utils import download_file, list_files
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_ROOT = ROOT / "demos"
+DATA_ROOT = ROOT / "dataset"
 CONFIG_ROOT = ROOT / "examples/baselines/lerobot_dataset/config/two_task_l0_l3"
 ASSET_ROOT = Path(os.getenv("MS_ASSET_DIR", Path.home() / ".maniskill")) / "data"
 DATA_REPO = "imitator-game/IG-10K-Dataset"
 ASSET_REPO = "imitator-game/IG-10K-Assets"
-DATASET_LOCAL_ROOTS = {
-    "imitator_human_v1/": "demo_data/",
-    "imitator_robot_v1/": "robot_data/",
-    "imitator_sim_v1_zed2i/": "imitator_data/",
+TASKS = {
+    "CleanDesk": {"human": "human_H19", "robot": "robot_H19"},
+    "PressJuicer": {"human": "human_H50", "robot": "robot_H50"},
 }
 ROBOTWIN_REVISION = "3dc3b798668feb99ac61cc9086d84cbcc3d79186"
 ROBOTWIN_OBJECTS_URL = (
@@ -38,10 +38,6 @@ ROBOTWIN_OBJECTS_URL = (
     f"{ROBOTWIN_REVISION}/objects.zip"
 )
 
-TASKS = {
-    "CleanDesk": {"human": "human_H19", "robot": "robot_H19"},
-    "PressJuicer": {"human": "human_H50", "robot": "robot_H50"},
-}
 ROBOTWIN_MODELS = {
     "023_tissue-box": 3,
     "086_woodenblock": 1,
@@ -54,15 +50,59 @@ PARTNET_MODEL = "103134"
 
 
 def _local_dataset_path(remote_path: str) -> Path:
-    for remote_root, local_root in DATASET_LOCAL_ROOTS.items():
-        if remote_path.startswith(remote_root):
-            return DATA_ROOT / local_root / remote_path[len(remote_root) :]
-    raise ValueError(f"Unrecognized IG-10K dataset path: {remote_path}")
+    parts = PurePosixPath(remote_path).parts
+    if len(parts) < 2:
+        raise ValueError(f"Unrecognized IG-10K dataset path: {remote_path}")
+    namespace, repo_id, *relative_path = parts
+
+    if namespace == "imitator_human_v1":
+        task = next((name for name, ids in TASKS.items() if ids["human"] == repo_id), None)
+        if task is None:
+            raise ValueError(f"Unrecognized human dataset: {repo_id}")
+        local_root = Path("human_data") / task
+    elif namespace == "imitator_robot_v1":
+        try:
+            repo_prefix, level = repo_id.rsplit("_L", 1)
+            level = int(level)
+        except (ValueError, TypeError):
+            raise ValueError(f"Unrecognized robot dataset: {repo_id}") from None
+        task = next((name for name, ids in TASKS.items() if ids["robot"] == repo_prefix), None)
+        if task is None or level not in range(4):
+            raise ValueError(f"Unrecognized robot dataset: {repo_id}")
+        local_root = Path("robot_data") / task / f"L{level}"
+    elif namespace == "imitator_sim_v1_zed2i":
+        match = re.fullmatch(r"L([0-3])_TwoRobot(.+)-v1", repo_id)
+        if match is None:
+            raise ValueError(f"Unrecognized simulation dataset: {repo_id}")
+        level, task = int(match.group(1)), match.group(2)
+        if task not in TASKS:
+            raise ValueError(f"Unrecognized simulation task: {task}")
+        local_root = Path("sim_data") / task / f"L{level}"
+    else:
+        raise ValueError(f"Unrecognized IG-10K dataset namespace: {namespace}")
+
+    return DATA_ROOT / local_root / Path(*relative_path)
 
 
-def _episode_config(repos: list[str]) -> list[dict[str, str]]:
+def _repo_root(repo_id: str, source: str) -> str:
+    if source == "human":
+        task = next(name for name, ids in TASKS.items() if ids["human"] == repo_id)
+        return task
+    if source == "robot":
+        for task, ids in TASKS.items():
+            prefix = ids["robot"] + "_L"
+            if repo_id.startswith(prefix):
+                return f"{task}/L{repo_id[len(prefix):]}"
+    if source == "sim":
+        match = re.fullmatch(r"L([0-3])_TwoRobot(.+)-v1", repo_id)
+        if match and match.group(2) in TASKS:
+            return f"{match.group(2)}/L{match.group(1)}"
+    raise ValueError(f"Cannot map {source} dataset to a local task path: {repo_id}")
+
+
+def _episode_config(repos: list[str], source: str) -> list[dict[str, str]]:
     return [
-        {"repo_id": repo, "root": repo, "train": "0:50", "test": ""}
+        {"repo_id": repo, "root": _repo_root(repo, source), "train": "0:50", "test": ""}
         for repo in repos
     ]
 
@@ -80,13 +120,13 @@ def _write_configs(levels: list[int]) -> None:
         for task in TASKS
         for level in levels
     ]
-    for name, repos in (
-        ("human_train.json", human_repos),
-        ("robot_train.json", robot_repos),
-        ("sim_train.json", sim_repos),
+    for name, repos, source in (
+        ("human_train.json", human_repos, "human"),
+        ("robot_train.json", robot_repos, "robot"),
+        ("sim_train.json", sim_repos, "sim"),
     ):
         (CONFIG_ROOT / name).write_text(
-            json.dumps(_episode_config(repos), indent=2) + "\n",
+            json.dumps(_episode_config(repos, source), indent=2) + "\n",
             encoding="utf-8",
         )
     (CONFIG_ROOT / "eval_envs.txt").write_text(
@@ -356,7 +396,7 @@ def main() -> None:
     _download_partnet_model()
     _verify_assets()
     print(f"Ready: CleanDesk and PressJuicer, levels {levels}, 50 episodes per branch.")
-    print("Data: demos/demo_data (human), demos/robot_data (real robot), demos/imitator_data (simulation)")
+    print("Data: dataset/{human_data,robot_data,sim_data}, grouped by task and level")
     print(f"Configs: {CONFIG_ROOT}")
     print(f"Assets: {ASSET_ROOT}")
 
